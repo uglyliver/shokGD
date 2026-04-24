@@ -28,7 +28,10 @@ export function spawnErickshaws(
     return { moving, lane };
   }
 
-  // Parked — tuck them near the kerb, alternating sides.
+  // Parked — fully off the road, on the pavement side of the kerb. Park them
+  // parallel to the lane (nose-in toward the shops would be nicer but needs a
+  // proper bay; this is a 2-minute vertical-slice simulation).
+  const pavCenterZ = lane.roadWidth / 2 + lane.pavementWidth / 2;
   for (let i = 0; i < 4; i++) {
     const inst = instantiateModel(assets, "erickshaw", scene, `erickshaw_parked_${i}`);
     if (!inst) break;
@@ -36,10 +39,12 @@ export function spawnErickshaws(
     inst.root.position.set(
       range(rng, -lane.length / 2 + 15, lane.length / 2 - 15),
       0,
-      side * (lane.roadWidth / 2 - 1.2),
+      side * pavCenterZ,
     );
-    // Face along lane direction, slightly askew so they read as hand-parked.
-    inst.root.rotation.y = (side === -1 ? 0 : Math.PI) + range(rng, -0.1, 0.1);
+    // Face along the lane so they read as parallel-parked (forward=+Z per
+    // convention, so rotating +π/2 or -π/2 aligns the vehicle with ±X).
+    inst.root.rotation.y =
+      (side === -1 ? Math.PI / 2 : -Math.PI / 2) + range(rng, -0.08, 0.08);
   }
 
   // Moving — drive slowly along one side of the road. Back-and-forth within
@@ -51,6 +56,7 @@ export function spawnErickshaws(
     const z = dir === 1 ? -lane.roadWidth / 4 : lane.roadWidth / 4;
     const xStart = dir === 1 ? -lane.length / 2 + 10 : lane.length / 2 - 10;
     inst.root.position.set(xStart, 0, z);
+    // Forward=+Z per convention; rotate ±π/2 so forward aligns with ±X.
     inst.root.rotation.y = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
 
     moving.push({

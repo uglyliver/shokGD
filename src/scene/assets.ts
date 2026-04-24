@@ -113,7 +113,7 @@ export interface ModelInstance {
 export function instantiateModel(
   lib: AssetLibrary,
   key: string,
-  _scene: Scene,
+  scene: Scene,
   name: string,
 ): ModelInstance | null {
   const tmpl = lib.models.get(key);
@@ -128,38 +128,41 @@ export function instantiateModel(
     { doNotInstantiate: true },
   );
 
-  const root = (result.rootNodes[0] ?? null) as TransformNode | null;
-  if (!root) return null;
-  root.name = name;
+  const inner = (result.rootNodes[0] ?? null) as TransformNode | null;
+  if (!inner) return null;
 
-  // Apply per-model transform.
-  const s = tmpl.transform.scale;
-  root.scaling.setAll(s);
-  root.rotation.y += tmpl.transform.yawOffset;
+  // Wrap in an outer node so spawn code can assign rotation.y freely without
+  // clobbering any per-model authoring-axis correction (yawOffset) or scale.
+  const outer = new TransformNode(name, scene);
+  inner.parent = outer;
+  inner.name = `${name}__inner`;
 
-  // Auto-ground or explicit offset.
+  // Per-model correction lives on the INNER node.
+  inner.scaling.setAll(tmpl.transform.scale);
+  inner.rotation.y = tmpl.transform.yawOffset;
+
+  // Auto-ground / y-offset applied to the outer node so callers can
+  // override position.y themselves without re-breaking grounding.
   if (tmpl.transform.yOffset === "auto") {
-    // getHierarchyBoundingVectors forces world-matrix compute on all
-    // descendants, so min.y is accurate for Meshy-style models whose
-    // root+children have unapplied transforms.
-    root.computeWorldMatrix(true);
-    const bb = (root as AbstractMesh).getHierarchyBoundingVectors(true);
+    outer.computeWorldMatrix(true);
+    const bb = (outer as unknown as AbstractMesh).getHierarchyBoundingVectors(true);
     const minY = bb.min.y;
     if (isFinite(minY) && Math.abs(minY) > 0.001) {
-      root.position.y -= minY;
+      outer.position.y -= minY;
     }
   } else if (typeof tmpl.transform.yOffset === "number") {
-    root.position.y += tmpl.transform.yOffset;
+    outer.position.y += tmpl.transform.yOffset;
   }
 
-  return { root, animations: result.animationGroups };
+  return { root: outer, animations: result.animationGroups };
 }
 
 export const MANIFEST: ModelManifestEntry[] = [
   { key: "cow",               file: "cow.glb" },
-  // Scale 1.0 (as-exported) — the Meshy 'shaw is roughly real-world-sized,
-  // we just needed auto-ground to stop it sinking through the road.
-  { key: "erickshaw",         file: "erickshaw.glb",         scale: 1.0 },
+  // Scale 1.0 (as-exported). The Meshy export has its length along local +X
+  // instead of the project convention (+Z forward), so rotate -90° so local +X
+  // lands on world +Z before any scene-level yaw is applied.
+  { key: "erickshaw",         file: "erickshaw.glb",         scale: 1.0, yawOffset: -Math.PI / 2 },
   { key: "npc_male_kurta",    file: "npc_male_kurta.glb" },
   { key: "npc_female_saree",  file: "npc_female_saree.glb" },
   { key: "auto_rickshaw",     file: "auto_rickshaw.glb" },
