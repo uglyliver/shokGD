@@ -131,28 +131,33 @@ export function instantiateModel(
   const inner = (result.rootNodes[0] ?? null) as TransformNode | null;
   if (!inner) return null;
 
-  // Wrap in an outer node so spawn code can assign rotation.y freely without
-  // clobbering any per-model authoring-axis correction (yawOffset) or scale.
+  // Three-level wrap so per-model correction actually sticks, even for
+  // glTF-loaded nodes that come with a non-null rotationQuaternion (Babylon
+  // ignores .rotation Euler when .rotationQuaternion is set — that's why
+  // setting yawOffset on the inner directly was a silent no-op for both the
+  // CesiumMan NPC and the Meshy e-rickshaw).
+  //
+  //   outer   — game code owns this (position / yaw-from-motion)
+  //   corr    — per-model correction (yawOffset, scale, y-offset)
+  //   inner   — the loaded glTF root, keep its rotationQuaternion untouched
   const outer = new TransformNode(name, scene);
-  inner.parent = outer;
+  const corr = new TransformNode(`${name}__corr`, scene);
+  corr.parent = outer;
+  inner.parent = corr;
   inner.name = `${name}__inner`;
 
-  // Per-model correction lives on the INNER node — scale, authoring-axis yaw,
-  // and the auto-ground y-offset all compose here. That way the outer node
-  // starts at origin and callers can freely do `inst.root.position.set(x,0,z)`
-  // without undoing the grounding or the yaw correction.
-  inner.scaling.setAll(tmpl.transform.scale);
-  inner.rotation.y = tmpl.transform.yawOffset;
+  corr.scaling.setAll(tmpl.transform.scale);
+  corr.rotation.y = tmpl.transform.yawOffset;
 
   if (tmpl.transform.yOffset === "auto") {
     outer.computeWorldMatrix(true);
     const bb = (outer as unknown as AbstractMesh).getHierarchyBoundingVectors(true);
     const minY = bb.min.y;
     if (isFinite(minY) && Math.abs(minY) > 0.001) {
-      inner.position.y -= minY;
+      corr.position.y -= minY;
     }
   } else if (typeof tmpl.transform.yOffset === "number") {
-    inner.position.y += tmpl.transform.yOffset;
+    corr.position.y += tmpl.transform.yOffset;
   }
 
   return { root: outer, animations: result.animationGroups };
