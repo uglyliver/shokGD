@@ -61,7 +61,7 @@ function paintRoadTexture(scene: Scene, lengthU: number): DynamicTexture {
     ctx.fill();
   }
 
-  tex.update(false);
+  tex.update();
   tex.uScale = lengthU; // repeat along length
   tex.vScale = 1;
   return tex;
@@ -111,7 +111,7 @@ function paintPavementTexture(scene: Scene, lengthU: number): DynamicTexture {
     ctx.fillRect(Math.random() * w, Math.random() * h, Math.random() * 40 + 10, 3);
   }
 
-  tex.update(false);
+  tex.update();
   tex.uScale = lengthU * 0.5;
   tex.vScale = 1;
   return tex;

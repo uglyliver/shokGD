@@ -137,7 +137,12 @@ export function spawnCrowd(
     if (inst) {
       root = inst.root;
       usingModel = true;
-      const walk = inst.animations.find((a) => /walk/i.test(a.name));
+      // Prefer a named walk cycle; fall back to the first animation group
+      // (many models, including the Khronos reference CesiumMan, ship with
+      // unnamed animations like "animation_0").
+      const walk =
+        inst.animations.find((a) => /walk|locomotion|run|move/i.test(a.name)) ??
+        inst.animations[0];
       walk?.start(true);
     } else {
       root = new Mesh(`npc_${i}`, scene);

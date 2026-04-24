@@ -100,6 +100,11 @@ try {
   });
   console.log(`[smoke] canvas is ${canvasInfo.w}x${canvasInfo.h}`);
 
+  await page.click("#game");
+  await new Promise((r) => setTimeout(r, 1500));
+  await page.screenshot({ path: "/tmp/shokgd-screenshot.png", fullPage: false });
+  console.log(`[smoke] screenshot -> /tmp/shokgd-screenshot.png`);
+
   if (pageErrors.length > 0) {
     console.error("[smoke] UNCAUGHT runtime errors:");
     for (const e of pageErrors) console.error("  -", e);

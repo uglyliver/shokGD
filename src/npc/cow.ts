@@ -122,8 +122,10 @@ export function spawnCow(scene: Scene, lane: Lane, assets: AssetLibrary): Cow {
   if (inst) {
     root = inst.root;
     usingModel = true;
-    // Kick off idle/walk anim if present.
-    const walk = inst.animations.find((a) => /walk|idle/i.test(a.name));
+    // Kick off any idle/walk anim — accept unnamed animations too.
+    const walk =
+      inst.animations.find((a) => /walk|idle|locomotion|move/i.test(a.name)) ??
+      inst.animations[0];
     walk?.start(true);
   } else {
     root = new Mesh("cow", scene);

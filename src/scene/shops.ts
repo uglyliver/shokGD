@@ -69,11 +69,11 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
       );
       const signZ = side * (lane.shopFrontZ - 0.02);
       sign.position.set(cx, height - signH / 2 - 0.3, signZ);
-      // Babylon plane's default normal is +Z; viewer in the lane is on the
-      // -Z side of a side=+1 shop (plane at z=+shopFrontZ) and on the +Z
-      // side of a side=-1 shop. Rotate the +1 side so the textured face
-      // looks at the lane, not away from it.
-      if (side === 1) sign.rotation.y = Math.PI;
+      // side=-1 shops face the lane (+Z) after a 180° yaw. Rotation PI
+      // around Y keeps the plane visible (CCW winding from +Z preserved)
+      // but swaps the screen-space U direction, which mirrors the text.
+      // We compensate by flipping the texture's U mapping below.
+      if (side === -1) sign.rotation.y = Math.PI;
       const signMat = new StandardMaterial(`sign_mat_${side}_${shopIdx}`, scene);
       const idx = shopIdx + (side === 1 ? 7 : 0);
       const spec = {
@@ -83,7 +83,8 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
         phone: randomPhone(rng),
         palette: pick(rng, SIGN_PALETTES),
       };
-      signMat.diffuseTexture = paintSignTexture(scene, `${side}_${shopIdx}`, spec);
+      const signTex = paintSignTexture(scene, `${side}_${shopIdx}`, spec);
+      signMat.diffuseTexture = signTex;
       signMat.emissiveColor = new Color3(0.25, 0.25, 0.25); // self-lit for legibility
       signMat.specularColor = new Color3(0, 0, 0);
       sign.material = signMat;
@@ -128,7 +129,7 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
         (height - signH - 1) / 2,
         side * (lane.shopFrontZ - 0.015),
       );
-      if (side === 1) door.rotation.y = Math.PI;
+      if (side === -1) door.rotation.y = Math.PI;
       const doorMat = new StandardMaterial(`door_mat_${side}_${shopIdx}`, scene);
       doorMat.diffuseColor = new Color3(0.15, 0.12, 0.1);
       doorMat.specularColor = new Color3(0.2, 0.2, 0.2);

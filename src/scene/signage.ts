@@ -16,9 +16,10 @@ export function paintSignTexture(
   scene: Scene,
   name: string,
   spec: SignSpec,
-  widthPx = 1024,
-  heightPx = 256,
+  opts: { mirror?: boolean; widthPx?: number; heightPx?: number } = {},
 ): DynamicTexture {
+  const widthPx = opts.widthPx ?? 1024;
+  const heightPx = opts.heightPx ?? 256;
   const tex = new DynamicTexture(
     `sign_${name}`,
     { width: widthPx, height: heightPx },
@@ -26,6 +27,14 @@ export function paintSignTexture(
     false,
   );
   const ctx = tex.getContext() as unknown as CanvasRenderingContext2D;
+
+  // Pre-mirror the canvas horizontally if the caller plans to view the plane
+  // through a 180° yaw (which flips the screen-space U direction). Applying
+  // the flip at paint time avoids the UV-scale gymnastics.
+  if (opts.mirror) {
+    ctx.translate(widthPx, 0);
+    ctx.scale(-1, 1);
+  }
 
   // Background with subtle vertical noise.
   ctx.fillStyle = spec.palette.bg;
@@ -70,7 +79,7 @@ export function paintSignTexture(
     heightPx - 42,
   );
 
-  tex.update(false);
+  tex.update();
   return tex;
 }
 
@@ -98,6 +107,6 @@ export function paintBannerTexture(
   for (let x = 0; x < w; x += 32) {
     ctx.fillRect(x + Math.random() * 8, h - 6, 16, 6);
   }
-  tex.update(false);
+  tex.update();
   return tex;
 }
