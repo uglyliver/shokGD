@@ -5,3 +5,7 @@ dist
 .vite
 .env
 .env.local
+
+# Visual test run outputs — the baselines in tests/baseline/ are checked in;
+# tests/actual/ gets regenerated on every run.
+tests/actual

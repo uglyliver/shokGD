@@ -32,7 +32,11 @@ export async function startGame(
 ): Promise<Game> {
   progress(0.02, "creating engine");
   const engine = new Engine(canvas, true, {
-    preserveDrawingBuffer: false,
+    // preserveDrawingBuffer=true so puppeteer-based visual tests + in-browser
+    // screenshot tools capture the current frame instead of a cleared buffer.
+    // Performance impact on a real GPU is negligible (one extra framebuffer
+    // copy per frame).
+    preserveDrawingBuffer: true,
     stencil: true,
     antialias: true,
     powerPreference: "high-performance",
@@ -121,6 +125,13 @@ export async function startGame(
         assets.loaded.length ? assets.loaded.join(", ") : "(none — using procedural)"
       }</span>`;
   }
+
+  // Expose a debug handle so external harnesses (scripts/visual-test.mjs,
+  // browser console) can inspect the scene graph, pose the cameras, and
+  // assert invariants. Public game, no secrets — safe to expose.
+  (window as unknown as { __shokGD?: unknown }).__shokGD = {
+    scene, engine, player, bootCam, crowd, cow, erickshaws, assets, lane,
+  };
 
   return {
     enter() {
