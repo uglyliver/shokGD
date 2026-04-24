@@ -69,7 +69,11 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
       );
       const signZ = side * (lane.shopFrontZ - 0.02);
       sign.position.set(cx, height - signH / 2 - 0.3, signZ);
-      if (side === -1) sign.rotation.y = Math.PI; // face the lane
+      // Babylon plane's default normal is +Z; viewer in the lane is on the
+      // -Z side of a side=+1 shop (plane at z=+shopFrontZ) and on the +Z
+      // side of a side=-1 shop. Rotate the +1 side so the textured face
+      // looks at the lane, not away from it.
+      if (side === 1) sign.rotation.y = Math.PI;
       const signMat = new StandardMaterial(`sign_mat_${side}_${shopIdx}`, scene);
       const idx = shopIdx + (side === 1 ? 7 : 0);
       const spec = {
@@ -124,7 +128,7 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
         (height - signH - 1) / 2,
         side * (lane.shopFrontZ - 0.015),
       );
-      if (side === -1) door.rotation.y = Math.PI;
+      if (side === 1) door.rotation.y = Math.PI;
       const doorMat = new StandardMaterial(`door_mat_${side}_${shopIdx}`, scene);
       doorMat.diffuseColor = new Color3(0.15, 0.12, 0.1);
       doorMat.specularColor = new Color3(0.2, 0.2, 0.2);
@@ -138,7 +142,10 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
     }
   }
 
-  // A couple of cross-lane banners at fixed positions.
+  // A couple of cross-lane banners at fixed positions. Each banner is built
+  // as TWO back-to-back single-sided planes, so text reads correctly from
+  // both viewing directions along the lane — a single plane would show
+  // mirrored text from one side.
   const bannerSpecs = [
     { text: "शुभ विवाह", bg: "#f1b90b", fg: "#c1121f", x: -50 },
     { text: "नवरात्रि महोत्सव", bg: "#e63946", fg: "#ffffff", x: 20 },
@@ -146,22 +153,25 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
   ];
   for (let i = 0; i < bannerSpecs.length; i++) {
     const s = bannerSpecs[i];
-    const banner = MeshBuilder.CreatePlane(
-      `banner_${i}`,
-      { width: 10, height: 1.8 },
-      scene,
-    );
-    banner.position.set(s.x, lane.shopHeight - 0.5, 0);
-    banner.rotation.y = Math.PI / 2;
     const bm = new StandardMaterial(`banner_mat_${i}`, scene);
     bm.diffuseTexture = paintBannerTexture(scene, `b${i}`, s.text, s.bg, s.fg);
     bm.emissiveColor = new Color3(0.3, 0.3, 0.3);
-    bm.backFaceCulling = false;
+    bm.backFaceCulling = true;
     bm.specularColor = new Color3(0, 0, 0);
-    banner.material = bm;
-    banner.isPickable = false;
-    banner.checkCollisions = false;
-    meshes.push(banner);
+
+    for (const face of [+1, -1] as const) {
+      const banner = MeshBuilder.CreatePlane(
+        `banner_${i}_${face === 1 ? "a" : "b"}`,
+        { width: 10, height: 1.8 },
+        scene,
+      );
+      banner.position.set(s.x, lane.shopHeight - 0.5, 0);
+      banner.rotation.y = face * Math.PI / 2;
+      banner.material = bm;
+      banner.isPickable = false;
+      banner.checkCollisions = false;
+      meshes.push(banner);
+    }
   }
 
   // Scatter a few trash bins + tyre piles on pavements for life.

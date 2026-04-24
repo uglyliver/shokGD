@@ -27,10 +27,17 @@ export interface ModelManifestEntry {
   file: string;
   /** Uniform scale applied to the root after load. */
   scale?: number;
-  /** Y-offset applied after load (useful if pivot is off-floor). */
+  /** Explicit Y-offset applied after load. When set, disables auto-ground. */
   yOffset?: number;
   /** Yaw offset in radians — apply if model's "forward" is not +Z. */
   yawOffset?: number;
+  /**
+   * If true (default), shift the model up so its bounding box min.y sits at
+   * 0 after scaling. Prevents Meshy-style pivoted-at-center models from
+   * being half-buried. Set false when the model's pivot is intentional
+   * (e.g., overhead signs that hang from y=0).
+   */
+  autoGround?: boolean;
 }
 
 export interface AssetLibrary {
@@ -91,8 +98,21 @@ export async function loadAssets(
       if (!root) throw new Error("no meshes in file");
 
       if (entry.scale != null) root.scaling.setAll(entry.scale);
-      if (entry.yOffset != null) root.position.y += entry.yOffset;
       if (entry.yawOffset != null) root.rotation.y += entry.yawOffset;
+
+      // Auto-ground: shift up so bbox.min.y = 0 after scaling. Meshy and
+      // many other DCC exports center the pivot inside the mesh, which
+      // sinks the model through the floor otherwise. Explicit yOffset wins.
+      if (entry.yOffset != null) {
+        root.position.y += entry.yOffset;
+      } else if (entry.autoGround !== false) {
+        root.computeWorldMatrix(true);
+        const bb = root.getHierarchyBoundingVectors(true);
+        const minY = bb.min.y;
+        if (isFinite(minY) && Math.abs(minY) > 0.001) {
+          root.position.y -= minY;
+        }
+      }
 
       // Keep the template disabled; we clone it for each live instance.
       root.setEnabled(false);
@@ -159,10 +179,12 @@ export function instantiateModel(
 }
 
 export const MANIFEST: ModelManifestEntry[] = [
-  { key: "cow",               file: "cow.glb",               scale: 1.0, yOffset: 0 },
-  { key: "erickshaw",         file: "erickshaw.glb",         scale: 1.0, yOffset: 0 },
-  { key: "npc_male_kurta",    file: "npc_male_kurta.glb",    scale: 1.0, yOffset: 0 },
-  { key: "npc_female_saree",  file: "npc_female_saree.glb",  scale: 1.0, yOffset: 0 },
-  { key: "auto_rickshaw",     file: "auto_rickshaw.glb",     scale: 1.0, yOffset: 0 },
-  { key: "scooter",           file: "scooter.glb",           scale: 1.0, yOffset: 0 },
+  { key: "cow",               file: "cow.glb" },
+  // Meshy e-rickshaw: scaled to read as a real-world ~2 m tall vehicle; the
+  // auto-ground pass in loadAssets handles the sunk-into-road issue.
+  { key: "erickshaw",         file: "erickshaw.glb",         scale: 0.5 },
+  { key: "npc_male_kurta",    file: "npc_male_kurta.glb" },
+  { key: "npc_female_saree",  file: "npc_female_saree.glb" },
+  { key: "auto_rickshaw",     file: "auto_rickshaw.glb" },
+  { key: "scooter",           file: "scooter.glb" },
 ];
