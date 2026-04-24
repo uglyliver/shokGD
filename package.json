@@ -1,0 +1,22 @@
+{
+  "name": "shokgd",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "shokGD - photoreal desi open-world prototype (v0.1: Janakpuri gali vertical slice)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host --port 4173",
+    "smoke": "node scripts/smoke-test.mjs"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^7.34.0",
+    "@babylonjs/materials": "^7.34.0"
+  },
+  "devDependencies": {
+    "puppeteer": "^23.0.0",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.8"
+  }
+}

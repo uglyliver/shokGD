@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>shokGD — Janakpuri Gali (v0.1)</title>
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700;900&family=Noto+Sans:wght@400;700;900&display=block"
+      rel="stylesheet"
+    />
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #0b0b0b;
+        color: #eee;
+        font-family: "Noto Sans", system-ui, sans-serif;
+        overflow: hidden;
+      }
+      #app { position: fixed; inset: 0; }
+      canvas#game {
+        display: block;
+        width: 100%;
+        height: 100%;
+        outline: none;
+        touch-action: none;
+      }
+      #loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: #0b0b0b;
+        z-index: 10;
+        transition: opacity 400ms ease;
+      }
+      #loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #loader h1 {
+        margin: 0;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        font-size: 28px;
+      }
+      #loader .sub {
+        opacity: 0.7;
+        font-size: 14px;
+        max-width: 520px;
+        text-align: center;
+        line-height: 1.5;
+      }
+      #loader .bar {
+        width: min(320px, 60vw);
+        height: 4px;
+        background: #222;
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      #loader .fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #ff9a3c, #ff3c3c);
+        transition: width 180ms ease;
+      }
+      #hud {
+        position: fixed;
+        left: 12px;
+        bottom: 12px;
+        font-size: 12px;
+        opacity: 0.7;
+        pointer-events: none;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+        line-height: 1.4;
+      }
+      #start {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.55);
+        z-index: 5;
+        cursor: pointer;
+        font-size: 15px;
+      }
+      #start.show { display: flex; }
+      #start .card {
+        background: #121212;
+        border: 1px solid #2a2a2a;
+        padding: 18px 22px;
+        border-radius: 10px;
+        max-width: 420px;
+        text-align: center;
+        line-height: 1.5;
+      }
+      #start kbd {
+        background: #222;
+        border: 1px solid #333;
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game" tabindex="0"></canvas>
+      <div id="hud">shokGD v0.1 — Janakpuri gali (prototype)</div>
+      <div id="start">
+        <div class="card">
+          <div><strong>Click to enter the gali</strong></div>
+          <div style="margin-top:8px;opacity:0.8">
+            <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> walk &nbsp;·&nbsp;
+            <kbd>Shift</kbd> run &nbsp;·&nbsp;
+            <kbd>Mouse</kbd> look &nbsp;·&nbsp;
+            <kbd>Esc</kbd> release
+          </div>
+        </div>
+      </div>
+      <div id="loader">
+        <h1>shokGD</h1>
+        <div class="sub">loading the gali — cows, chai, and all that follows</div>
+        <div class="bar"><div class="fill" id="loader-fill"></div></div>
+        <div class="sub" id="loader-msg" style="opacity:0.5">booting</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
