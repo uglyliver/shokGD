@@ -170,13 +170,14 @@ export const MANIFEST: ModelManifestEntry[] = [
   // rear). yawOffset = -π/2 sends local -X to world +Z before spawn-time
   // ±π/2 rotations align the vehicle with the lane.
   { key: "erickshaw",         file: "erickshaw.glb",         scale: 1.0, yawOffset: -Math.PI / 2 },
-  // npc_male_kurta + npc_female_saree intentionally NOT listed: the only
-  // human glb we had (Khronos CesiumMan for npc_male_kurta) read as a
-  // robot/astronaut, not an Indian shopper. With both unlisted the loader
-  // falls through to crowd.ts's procedural builder, which now renders
-  // kurta-pajama men + saree-clad women with hair, bindis, topis, mustaches.
-  // Drop a proper rigged Indian glb in public/models/ and re-add the entry
-  // here to upgrade.
+  // Five Meshy "stylized semi-realistic" Indian human models, picked round-
+  // robin per spawn in crowd.ts. Models authored T-pose facing local -Z, so
+  // yawOffset = π aligns visual forward with project +Z convention. Each is
+  // ~1.5 MB after our scripts/shrink-glb-textures.mjs pass (Meshy ships at
+  // ~8 MB with 2K PNG textures; 512² is plenty at gali viewing distance).
+  ...["npc_0", "npc_1", "npc_2", "npc_3", "npc_4"].map((key) => ({
+    key, file: `${key}.glb`, yawOffset: Math.PI,
+  })),
   { key: "auto_rickshaw",     file: "auto_rickshaw.glb" },
   { key: "scooter",           file: "scooter.glb" },
 ];

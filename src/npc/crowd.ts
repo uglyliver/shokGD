@@ -322,20 +322,22 @@ export function spawnCrowd(
   const rng = mulberry32(42);
   const npcs: Npc[] = [];
 
-  // Decide per-NPC which template to try (male/female), with equal weight.
-  // Falls back to procedural boxes if the template isn't loaded.
+  // The npc_0..npc_4 Meshy templates are picked round-robin (with seed-driven
+  // jitter so the same seed gives the same crowd). If all five are missing —
+  // e.g. a fresh checkout that hasn't pulled the binaries yet — we fall back
+  // to the procedural builder so the scene still populates.
+  const templateKeys = ["npc_0", "npc_1", "npc_2", "npc_3", "npc_4"];
   for (let i = 0; i < count; i++) {
     const side = (rng() > 0.5 ? 1 : -1) as 1 | -1;
-    const wantFemale = rng() > 0.5;
 
     let root: TransformNode;
     let usingModel = false;
 
-    const tryKeys = wantFemale
-      ? ["npc_female_saree", "npc_male_kurta"]
-      : ["npc_male_kurta", "npc_female_saree"];
+    // Shuffle template order per-spawn so adjacent NPCs don't always look
+    // identical even when count is small.
+    const shuffled = [...templateKeys].sort(() => rng() - 0.5);
     let inst = null;
-    for (const k of tryKeys) {
+    for (const k of shuffled) {
       inst = instantiateModel(assets, k, scene, `npc_${i}`);
       if (inst) break;
     }
@@ -343,13 +345,11 @@ export function spawnCrowd(
     if (inst) {
       root = inst.root;
       usingModel = true;
-      // Prefer a named walk cycle; fall back to the first animation group
-      // (many models, including the Khronos reference CesiumMan, ship with
-      // unnamed animations like "animation_0").
-      const walk =
-        inst.animations.find((a) => /walk|locomotion|run|move/i.test(a.name)) ??
-        inst.animations[0];
-      walk?.start(true);
+      // Meshy exports are static T-poses — no walk animation to play.
+      // Apply a small per-NPC scale jitter so identical templates don't
+      // visually clone-stamp.
+      const sJitter = 0.94 + rng() * 0.12;
+      root.scaling.scaleInPlace(sJitter);
     } else {
       root = new Mesh(`npc_${i}`, scene);
       buildProcNpc(scene, root as Mesh, i, rng);
