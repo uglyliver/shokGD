@@ -43,6 +43,37 @@ on first load. Current comfort budget: **total all-models < 30 MB**.
 If you have a larger hero asset (e.g. a detailed e-rickshaw with 4K textures),
 ship it — we'll add streaming later.
 
+## Optimizing a Meshy (or any) glb before committing
+
+Meshy exports are typically 20–40 MB (millions of tris, uncompressed PNG
+textures). Crunch them with [`gltfpack`](https://github.com/zeux/meshoptimizer)
+before committing. Download the native binary (npm build lacks texture
+compression) from the meshoptimizer releases.
+
+```bash
+# One-time install (native binary, not the npm package)
+# macOS:  brew install gltfpack
+# Linux:  curl -sSL -o gltfpack.zip \
+#         https://github.com/zeux/meshoptimizer/releases/download/v1.1/gltfpack-ubuntu.zip \
+#         && unzip gltfpack.zip && chmod +x gltfpack && sudo mv gltfpack /usr/local/bin/
+
+# Optimize (geometry + texture)
+gltfpack -i meshy_export.glb -o erickshaw.glb \
+    -cc              `# meshopt geometry compression` \
+    -si 0.015        `# simplify to ~1.5% of source triangles (~10k for a 1.7M-tri Meshy output)` \
+    -tw -tl 1024 -tq 85  `# convert textures to WebP, cap at 1024², quality 85` \
+    -mm              `# merge materials where possible`
+```
+
+Typical Meshy output: **25 MB → 1–2 MB**, ~10k tris.
+
+Don't use `-tc` (KTX2/Basis) for now — it needs Babylon's CDN decoder at
+runtime, which is a brittle external dependency. WebP is native to browsers,
+zero decoder needed.
+
+If the optimized model looks too simplified, raise `-si` (try `0.03` for ~30k
+tris) or the texture budget (try `-tl 2048 -tq 90`). Re-run, re-check size.
+
 ## Where the files go on the site
 
 Vite copies anything in `public/` straight to the deployed root. After a push
