@@ -57,9 +57,8 @@ compression) from the meshoptimizer releases.
 #         https://github.com/zeux/meshoptimizer/releases/download/v1.1/gltfpack-ubuntu.zip \
 #         && unzip gltfpack.zip && chmod +x gltfpack && sudo mv gltfpack /usr/local/bin/
 
-# Optimize (geometry + texture)
+# Optimize (geometry + texture). DO NOT pass -cc — see note below.
 gltfpack -i meshy_export.glb -o erickshaw.glb \
-    -cc              `# meshopt geometry compression` \
     -si 0.015        `# simplify to ~1.5% of source triangles (~10k for a 1.7M-tri Meshy output)` \
     -tw -tl 1024 -tq 85  `# convert textures to WebP, cap at 1024², quality 85` \
     -mm              `# merge materials where possible`
@@ -67,9 +66,12 @@ gltfpack -i meshy_export.glb -o erickshaw.glb \
 
 Typical Meshy output: **25 MB → 1–2 MB**, ~10k tris.
 
-Don't use `-tc` (KTX2/Basis) for now — it needs Babylon's CDN decoder at
-runtime, which is a brittle external dependency. WebP is native to browsers,
-zero decoder needed.
+Don't use `-cc` (meshopt geometry compression) or `-tc` (KTX2/Basis) for now.
+Both need Babylon CDN-hosted decoders at runtime — that's a brittle external
+dependency, AND `EXT_meshopt_compression` makes Babylon's
+`boundingBox.minimumWorld` return wrong values, which silently breaks the
+auto-ground logic in `src/scene/assets.ts` and leaves models half-buried.
+WebP textures are native to browsers, zero decoder needed.
 
 If the optimized model looks too simplified, raise `-si` (try `0.03` for ~30k
 tris) or the texture budget (try `-tl 2048 -tq 90`). Re-run, re-check size.
