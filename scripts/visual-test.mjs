@@ -56,6 +56,7 @@ const POSES = [
   { name: "05-shops-right",  target: [0, 2, 6],    alpha: -Math.PI / 2,   beta: Math.PI / 2 - 0.1,  radius: 6 },
   { name: "06-chai-stall",   target: [-15, 1.3, 5], alpha: Math.PI / 2,   beta: Math.PI / 2 - 0.2,  radius: 4 },
   { name: "07-rickshaw",     dynamic: "firstParkedRickshaw", alpha: Math.PI / 3, beta: Math.PI / 2.4, radius: 4 },
+  { name: "08-npc-closeup",  dynamic: "firstNpc",            alpha: Math.PI / 4, beta: Math.PI / 2.3, radius: 2.5 },
 ];
 
 // --- Invariants: runs inside the page via evaluate. Returns { pass, failures[] }.
@@ -231,10 +232,17 @@ try {
   for (const pose of POSES) {
     // Dynamic poses compute their target from the live scene.
     const target = await page.evaluate((p) => {
-      const { scene, erickshaws } = window.__shokGD;
+      const { scene, erickshaws, crowd } = window.__shokGD;
       if (p.dynamic === "firstParkedRickshaw") {
         const r = scene.transformNodes.find(n => n.name === "erickshaw_parked_0");
         return r ? [r.position.x, 1.0, r.position.z] : [0, 1, 0];
+      }
+      if (p.dynamic === "firstNpc") {
+        // Use npc index 0 — pin it briefly so it doesn't wander out of frame.
+        const npc = crowd.npcs[0];
+        npc.idleTimer = 9999;
+        const p3 = npc.root.position;
+        return [p3.x, 1.0, p3.z];
       }
       return p.target;
     }, pose);

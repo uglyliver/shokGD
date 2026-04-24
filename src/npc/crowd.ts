@@ -29,17 +29,31 @@ export interface Crowd {
   rng: Rng;
 }
 
+// Top-wear palettes biased toward warm cottons + the occasional bold festive
+// colour, plus a few muted greys/whites for office shirt-pant types.
 const KURTA_COLORS = [
-  new Color3(0.85, 0.78, 0.6),
-  new Color3(0.7, 0.15, 0.15),
-  new Color3(0.15, 0.3, 0.5),
-  new Color3(0.9, 0.85, 0.82),
-  new Color3(0.9, 0.55, 0.15),
-  new Color3(0.4, 0.25, 0.6),
-  new Color3(0.2, 0.5, 0.3),
-  new Color3(0.8, 0.3, 0.5),
-  new Color3(0.3, 0.3, 0.35),
-  new Color3(0.95, 0.95, 0.95),
+  new Color3(0.95, 0.90, 0.78),  // off-white kurta
+  new Color3(0.88, 0.78, 0.55),  // beige
+  new Color3(0.7, 0.15, 0.15),   // crimson
+  new Color3(0.12, 0.28, 0.5),   // royal blue
+  new Color3(0.92, 0.55, 0.15),  // saffron
+  new Color3(0.4, 0.18, 0.55),   // purple
+  new Color3(0.18, 0.5, 0.32),   // bottle green
+  new Color3(0.82, 0.3, 0.5),    // pink
+  new Color3(0.32, 0.32, 0.35),  // grey shirt
+  new Color3(0.95, 0.95, 0.95),  // white shirt
+];
+
+// Saree palettes — typically more saturated, more contrast with the border.
+const SAREE_COLORS = [
+  new Color3(0.85, 0.12, 0.18),  // deep red
+  new Color3(0.95, 0.55, 0.12),  // marigold orange
+  new Color3(0.15, 0.55, 0.32),  // emerald
+  new Color3(0.62, 0.18, 0.55),  // magenta
+  new Color3(0.92, 0.78, 0.22),  // mustard yellow
+  new Color3(0.18, 0.32, 0.62),  // indigo
+  new Color3(0.78, 0.12, 0.42),  // hot pink
+  new Color3(0.32, 0.18, 0.5),   // royal purple
 ];
 
 const SKIN_TONES = [
@@ -48,6 +62,21 @@ const SKIN_TONES = [
   new Color3(0.65, 0.45, 0.32),
   new Color3(0.55, 0.38, 0.28),
   new Color3(0.85, 0.68, 0.52),
+];
+
+const HAIR_COLORS = [
+  new Color3(0.05, 0.04, 0.03),  // black
+  new Color3(0.10, 0.07, 0.05),  // very dark brown
+  new Color3(0.18, 0.12, 0.08),  // dark brown
+  new Color3(0.55, 0.55, 0.55),  // grey (older)
+];
+
+const PAJAMA_COLORS = [
+  new Color3(0.85, 0.82, 0.72),  // off-white pajama
+  new Color3(0.18, 0.18, 0.22),  // dark trouser
+  new Color3(0.30, 0.22, 0.16),  // brown trouser
+  new Color3(0.45, 0.42, 0.38),  // grey
+  new Color3(0.12, 0.18, 0.32),  // navy
 ];
 
 function pickTarget(lane: Lane, side: 1 | -1, rng: Rng): Vector3 {
@@ -59,49 +88,229 @@ function pickTarget(lane: Lane, side: 1 | -1, rng: Rng): Vector3 {
   );
 }
 
+/**
+ * Build a procedural Indian NPC. Two body templates:
+ *  - male:   kurta-pajama (cylinder torso → kurta hem flare → trouser legs)
+ *            optional skullcap (topi).
+ *  - female: saree (single tapered tube from chest to ankles, separate
+ *            shoulder pallu); long hair bun + bindi.
+ * Both share head, hair, arms. Heights vary 1.45–1.78m.
+ */
 function buildProcNpc(scene: Scene, root: Mesh, idx: number, rng: Rng): void {
-  const kurta = pick(rng, KURTA_COLORS);
+  const isFemale = rng() > 0.5;
   const skin = pick(rng, SKIN_TONES);
-  const tall = range(rng, 1.55, 1.82);
+  const hair = pick(rng, HAIR_COLORS);
+  const tall = range(rng, isFemale ? 1.45 : 1.6, isFemale ? 1.65 : 1.78);
 
-  const torso = MeshBuilder.CreateBox(
-    `npc_torso_${idx}`,
-    { width: 0.45, height: tall * 0.55, depth: 0.28 },
-    scene,
-  );
-  torso.position.y = tall * 0.55 * 0.5 + tall * 0.18;
-  torso.parent = root;
-  torso.material = pbr(scene, `npc_torso_mat_${idx}`, {
-    albedo: kurta,
-    roughness: 0.85,                              // cotton kurta
+  // Shared anatomical landmarks
+  const headDiameter = 0.22;
+  const neckY = tall - headDiameter * 0.5;
+  const shoulderY = neckY - 0.05;
+  const hipY = tall * 0.48;
+  const ankleY = 0.0;
+
+  const skinMat = pbr(scene, `npc_skin_mat_${idx}`, {
+    albedo: skin,
+    roughness: 0.6,
   });
-  torso.isPickable = false;
-
-  const legs = MeshBuilder.CreateBox(
-    `npc_legs_${idx}`,
-    { width: 0.38, height: tall * 0.45, depth: 0.28 },
-    scene,
-  );
-  legs.position.y = tall * 0.45 * 0.5;
-  legs.parent = root;
-  legs.material = pbr(scene, `npc_legs_mat_${idx}`, {
-    albedo: new Color3(kurta.r * 0.5, kurta.g * 0.45, kurta.b * 0.4),
-    roughness: 0.85,
+  const hairMat = pbr(scene, `npc_hair_mat_${idx}`, {
+    albedo: hair,
+    roughness: 0.5,
   });
-  legs.isPickable = false;
 
+  // --- Head
   const head = MeshBuilder.CreateSphere(
     `npc_head_${idx}`,
-    { diameter: 0.28, segments: 10 },
+    { diameter: headDiameter, segments: 12 },
     scene,
   );
-  head.position.y = tall * 0.55 + tall * 0.22;
+  head.position.y = tall - headDiameter * 0.5;
   head.parent = root;
-  head.material = pbr(scene, `npc_head_mat_${idx}`, {
-    albedo: skin,
-    roughness: 0.7,                               // skin sheen
-  });
+  head.material = skinMat;
   head.isPickable = false;
+
+  // --- Hair: a flatter sphere capping the top half of the head
+  const hairCap = MeshBuilder.CreateSphere(
+    `npc_hair_${idx}`,
+    { diameter: headDiameter * 1.05, segments: 12 },
+    scene,
+  );
+  hairCap.position.y = head.position.y + 0.01;
+  hairCap.scaling.y = 0.7;          // squashed cap
+  hairCap.parent = root;
+  hairCap.material = hairMat;
+  hairCap.isPickable = false;
+  // Carve out the front face by clipping below — Babylon doesn't have CSG
+  // here, so we just rely on the Z-front of the head sphere being skin-coloured
+  // and slightly larger than the hair sphere from the front. Good enough at
+  // this fidelity.
+
+  // --- Female: long hair down the back + optional bun
+  if (isFemale) {
+    const longHair = MeshBuilder.CreateCylinder(
+      `npc_longhair_${idx}`,
+      { diameterTop: 0.18, diameterBottom: 0.14, height: tall * 0.28, tessellation: 10 },
+      scene,
+    );
+    longHair.position.set(0, neckY - tall * 0.13, -0.05);
+    longHair.parent = root;
+    longHair.material = hairMat;
+    longHair.isPickable = false;
+
+    // Bindi — tiny red dot on forehead
+    const bindi = MeshBuilder.CreateSphere(
+      `npc_bindi_${idx}`,
+      { diameter: 0.02, segments: 6 },
+      scene,
+    );
+    bindi.position.set(0, head.position.y + 0.04, 0.105);
+    bindi.parent = root;
+    bindi.material = pbr(scene, `npc_bindi_mat_${idx}`, {
+      albedo: new Color3(0.85, 0.05, 0.1),
+      roughness: 0.4,
+    });
+    bindi.isPickable = false;
+  }
+
+  // --- Optional male topi (white prayer cap) for visual variety
+  if (!isFemale && rng() < 0.25) {
+    const topi = MeshBuilder.CreateCylinder(
+      `npc_topi_${idx}`,
+      { diameterTop: headDiameter * 0.95, diameterBottom: headDiameter, height: 0.07, tessellation: 14 },
+      scene,
+    );
+    topi.position.y = head.position.y + headDiameter * 0.5 + 0.025;
+    topi.parent = root;
+    topi.material = pbr(scene, `npc_topi_mat_${idx}`, {
+      albedo: new Color3(0.95, 0.95, 0.92),
+      roughness: 0.85,
+    });
+    topi.isPickable = false;
+  }
+
+  // --- Torso (different geometry per gender)
+  if (isFemale) {
+    const sareeColor = pick(rng, SAREE_COLORS);
+    const sareeMat = pbr(scene, `npc_saree_mat_${idx}`, {
+      albedo: sareeColor,
+      roughness: 0.8,
+    });
+    // Saree skirt: tapered cylinder from waist to ankle
+    const skirt = MeshBuilder.CreateCylinder(
+      `npc_saree_skirt_${idx}`,
+      { diameterTop: 0.34, diameterBottom: 0.46, height: hipY, tessellation: 14 },
+      scene,
+    );
+    skirt.position.y = hipY * 0.5;
+    skirt.parent = root;
+    skirt.material = sareeMat;
+    skirt.isPickable = false;
+
+    // Choli (blouse) — short shoulder piece
+    const choli = MeshBuilder.CreateCylinder(
+      `npc_choli_${idx}`,
+      { diameterTop: 0.36, diameterBottom: 0.38, height: 0.32, tessellation: 12 },
+      scene,
+    );
+    choli.position.y = hipY + 0.16;
+    choli.parent = root;
+    choli.material = sareeMat;
+    choli.isPickable = false;
+
+    // Pallu — diagonal sash across one shoulder
+    const pallu = MeshBuilder.CreateBox(
+      `npc_pallu_${idx}`,
+      { width: 0.42, height: tall * 0.55, depth: 0.04 },
+      scene,
+    );
+    pallu.position.set(0.06, hipY + tall * 0.18, -0.12);
+    pallu.rotation.z = -0.18;
+    pallu.parent = root;
+    pallu.material = sareeMat;
+    pallu.isPickable = false;
+  } else {
+    const kurtaColor = pick(rng, KURTA_COLORS);
+    const pajamaColor = pick(rng, PAJAMA_COLORS);
+    const kurtaMat = pbr(scene, `npc_kurta_mat_${idx}`, {
+      albedo: kurtaColor,
+      roughness: 0.85,
+    });
+    const pajamaMat = pbr(scene, `npc_pajama_mat_${idx}`, {
+      albedo: pajamaColor,
+      roughness: 0.85,
+    });
+
+    // Pajama / trouser legs — two separate cylinders
+    for (const sx of [-1, 1]) {
+      const leg = MeshBuilder.CreateCylinder(
+        `npc_leg_${idx}_${sx}`,
+        { diameter: 0.13, height: hipY, tessellation: 10 },
+        scene,
+      );
+      leg.position.set(sx * 0.08, hipY * 0.5, 0);
+      leg.parent = root;
+      leg.material = pajamaMat;
+      leg.isPickable = false;
+    }
+
+    // Kurta torso: cylinder that flares slightly toward the hip hem.
+    // Hem extends ~10cm below the hip line, signature long-kurta look.
+    const torso = MeshBuilder.CreateCylinder(
+      `npc_torso_${idx}`,
+      { diameterTop: 0.30, diameterBottom: 0.42, height: tall * 0.42, tessellation: 14 },
+      scene,
+    );
+    torso.position.y = hipY + tall * 0.42 * 0.5 - 0.1;
+    torso.parent = root;
+    torso.material = kurtaMat;
+    torso.isPickable = false;
+  }
+
+  // --- Arms (both genders — short visible sleeves + skin forearm)
+  const upperColor = isFemale ? null : pick(rng, KURTA_COLORS); // sleeve match
+  for (const sx of [-1, 1]) {
+    const arm = MeshBuilder.CreateCylinder(
+      `npc_arm_${idx}_${sx}`,
+      { diameter: 0.075, height: tall * 0.42, tessellation: 8 },
+      scene,
+    );
+    arm.position.set(sx * 0.21, shoulderY - tall * 0.21, 0);
+    arm.parent = root;
+    arm.material = skinMat;
+    arm.isPickable = false;
+
+    // Short sleeve cap covering the top third of the arm — matches torso
+    if (upperColor !== null) {
+      const sleeve = MeshBuilder.CreateCylinder(
+        `npc_sleeve_${idx}_${sx}`,
+        { diameter: 0.10, height: tall * 0.18, tessellation: 8 },
+        scene,
+      );
+      sleeve.position.set(sx * 0.21, shoulderY - tall * 0.09, 0);
+      sleeve.parent = root;
+      sleeve.material = pbr(scene, `npc_sleeve_mat_${idx}_${sx}`, {
+        albedo: upperColor,
+        roughness: 0.85,
+      });
+      sleeve.isPickable = false;
+    }
+  }
+
+  // --- Mustache (some men)
+  if (!isFemale && rng() < 0.4) {
+    const mustache = MeshBuilder.CreateBox(
+      `npc_mustache_${idx}`,
+      { width: 0.07, height: 0.012, depth: 0.025 },
+      scene,
+    );
+    mustache.position.set(0, head.position.y - 0.025, 0.10);
+    mustache.parent = root;
+    mustache.material = hairMat;
+    mustache.isPickable = false;
+  }
+
+  // Reference to silence unused-var warnings on landmarks not consumed above.
+  void ankleY;
 }
 
 export function spawnCrowd(
