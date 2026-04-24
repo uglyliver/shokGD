@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@babylonjs/core": "^7.34.0",
+    "@babylonjs/loaders": "^7.34.0",
     "@babylonjs/materials": "^7.34.0"
   },
   "devDependencies": {

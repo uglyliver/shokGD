@@ -55,6 +55,9 @@ console.log(`[smoke] serving ${DIST} on :${PORT}`);
 
 let exitCode = 0;
 let browser;
+const allLogs = [];
+const pageErrors = [];
+const consoleSoftErrors = [];
 try {
   browser = await puppeteer.launch({
     headless: "new",
@@ -71,9 +74,8 @@ try {
 
   // Runtime errors = hard fail. Console errors (network 404s etc) are soft —
   // we log them as warnings since sandboxed environments often block CDNs.
-  const pageErrors = [];
-  const consoleSoftErrors = [];
   page.on("console", (m) => {
+    allLogs.push(`[${m.type()}] ${m.text()}`);
     if (m.type() === "error") consoleSoftErrors.push(m.text());
   });
   page.on("pageerror", (e) => pageErrors.push(String(e)));
@@ -115,6 +117,10 @@ try {
   }
 } catch (err) {
   console.error("[smoke] failed:", err);
+  console.error("[smoke] page errors:");
+  for (const e of pageErrors) console.error("  -", e);
+  console.error("[smoke] console log tail:");
+  for (const l of allLogs.slice(-40)) console.error("  ", l);
   exitCode = 1;
 } finally {
   if (browser) await browser.close();

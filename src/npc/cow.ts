@@ -4,22 +4,22 @@ import {
   MeshBuilder,
   Scene,
   StandardMaterial,
+  TransformNode,
   Vector3,
 } from "@babylonjs/core";
 
 import type { Lane } from "../scene/lane";
 import { mulberry32, range, type Rng } from "../util/rand";
-
-// Lone cow wanderer. Parked on/near the road, ambles slowly, occasionally
-// stops to chew. Made of simple boxes — body, head, four legs, tail, horns.
+import { AssetLibrary, instantiateModel } from "../scene/assets";
 
 export interface Cow {
-  root: Mesh;
+  root: TransformNode;
   target: Vector3;
   speed: number;
   idleTimer: number;
   lane: Lane;
   rng: Rng;
+  usingModel: boolean;
 }
 
 function pickCowTarget(lane: Lane, rng: Rng): Vector3 {
@@ -30,24 +30,21 @@ function pickCowTarget(lane: Lane, rng: Rng): Vector3 {
   );
 }
 
-export function spawnCow(scene: Scene, lane: Lane): Cow {
-  const rng = mulberry32(9001);
-  const root = new Mesh("cow", scene);
-
+// Procedural cow fallback — used when cow.glb isn't present. Keeps the scene
+// alive even with no art yet.
+function buildProcCow(scene: Scene, root: Mesh): void {
   const coat = new Color3(0.92, 0.9, 0.86);
   const coatDark = new Color3(0.2, 0.15, 0.12);
+  const bodyMat = new StandardMaterial("cow_body_mat", scene);
+  bodyMat.diffuseColor = coat;
+  bodyMat.specularColor = new Color3(0.05, 0.05, 0.05);
 
   const body = MeshBuilder.CreateBox("cow_body", { width: 0.7, height: 0.8, depth: 1.6 }, scene);
   body.position.y = 0.9;
   body.parent = root;
-  const bodyMat = new StandardMaterial("cow_body_mat", scene);
-  bodyMat.diffuseColor = coat;
-  bodyMat.specularColor = new Color3(0.05, 0.05, 0.05);
   body.material = bodyMat;
   body.isPickable = false;
-  body.checkCollisions = false;
 
-  // Patch on side (asymmetric — only place one).
   const patch = MeshBuilder.CreateBox("cow_patch", { width: 0.72, height: 0.4, depth: 0.5 }, scene);
   patch.position.set(0, 0.9, 0.2);
   patch.parent = root;
@@ -56,25 +53,20 @@ export function spawnCow(scene: Scene, lane: Lane): Cow {
   patchMat.specularColor = new Color3(0, 0, 0);
   patch.material = patchMat;
   patch.isPickable = false;
-  patch.checkCollisions = false;
 
   const head = MeshBuilder.CreateBox("cow_head", { width: 0.45, height: 0.45, depth: 0.55 }, scene);
   head.position.set(0, 1.0, 1.0);
   head.parent = root;
   head.material = bodyMat;
   head.isPickable = false;
-  head.checkCollisions = false;
 
-  // Hump (common on Indian cattle).
   const hump = MeshBuilder.CreateSphere("cow_hump", { diameter: 0.5, segments: 8 }, scene);
   hump.position.set(0, 1.35, 0.4);
   hump.scaling.set(0.9, 0.7, 1.1);
   hump.parent = root;
   hump.material = bodyMat;
   hump.isPickable = false;
-  hump.checkCollisions = false;
 
-  // Horns.
   for (const sx of [-1, 1]) {
     const horn = MeshBuilder.CreateCylinder(
       "cow_horn",
@@ -89,10 +81,8 @@ export function spawnCow(scene: Scene, lane: Lane): Cow {
     hm.specularColor = new Color3(0, 0, 0);
     horn.material = hm;
     horn.isPickable = false;
-    horn.checkCollisions = false;
   }
 
-  // Legs.
   for (const [dx, dz] of [
     [-0.25, -0.6],
     [0.25, -0.6],
@@ -108,10 +98,8 @@ export function spawnCow(scene: Scene, lane: Lane): Cow {
     leg.parent = root;
     leg.material = bodyMat;
     leg.isPickable = false;
-    leg.checkCollisions = false;
   }
 
-  // Tail.
   const tail = MeshBuilder.CreateCylinder(
     "cow_tail",
     { height: 0.7, diameterTop: 0.03, diameterBottom: 0.06 },
@@ -122,7 +110,25 @@ export function spawnCow(scene: Scene, lane: Lane): Cow {
   tail.parent = root;
   tail.material = bodyMat;
   tail.isPickable = false;
-  tail.checkCollisions = false;
+}
+
+export function spawnCow(scene: Scene, lane: Lane, assets: AssetLibrary): Cow {
+  const rng = mulberry32(9001);
+
+  let root: TransformNode;
+  let usingModel = false;
+
+  const inst = instantiateModel(assets, "cow", scene, "cow_inst");
+  if (inst) {
+    root = inst.root;
+    usingModel = true;
+    // Kick off idle/walk anim if present.
+    const walk = inst.animations.find((a) => /walk|idle/i.test(a.name));
+    walk?.start(true);
+  } else {
+    root = new Mesh("cow", scene);
+    buildProcCow(scene, root as Mesh);
+  }
 
   const start = pickCowTarget(lane, rng);
   root.position.copyFrom(start);
@@ -134,6 +140,7 @@ export function spawnCow(scene: Scene, lane: Lane): Cow {
     idleTimer: 0,
     lane,
     rng,
+    usingModel,
   };
 }
 
@@ -148,7 +155,7 @@ export function updateCow(cow: Cow, dt: number): void {
   const dist = to.length();
   if (dist < 0.5) {
     cow.target = pickCowTarget(cow.lane, cow.rng);
-    cow.idleTimer = 3 + cow.rng() * 6; // chew for a while
+    cow.idleTimer = 3 + cow.rng() * 6;
     return;
   }
   const step = Math.min(dist, cow.speed * dt);
