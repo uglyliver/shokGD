@@ -4,12 +4,12 @@ import {
   MeshBuilder,
   ParticleSystem,
   Scene,
-  StandardMaterial,
   Texture,
   Vector3,
 } from "@babylonjs/core";
 
 import type { Lane } from "./lane";
+import { pbr } from "./materials";
 import { castAndReceive, castShadow } from "./shadows";
 
 function paintSteamParticleTexture(scene: Scene): Texture {
@@ -40,10 +40,10 @@ export function buildChaiStall(scene: Scene, lane: Lane): void {
     scene,
   );
   cart.position.set(basePos.x, 0.45, basePos.z);
-  const cartMat = new StandardMaterial("chai_cart_mat", scene);
-  cartMat.diffuseColor = new Color3(0.45, 0.28, 0.16);
-  cartMat.specularColor = new Color3(0.05, 0.05, 0.05);
-  cart.material = cartMat;
+  cart.material = pbr(scene, "chai_cart_mat", {
+    albedo: new Color3(0.45, 0.28, 0.16),
+    roughness: 0.85,                              // weathered painted wood
+  });
   cart.checkCollisions = true;
   cart.isPickable = false;
   castAndReceive(cart);
@@ -55,10 +55,10 @@ export function buildChaiStall(scene: Scene, lane: Lane): void {
     scene,
   );
   top.position.set(basePos.x, 0.93, basePos.z);
-  const topMat = new StandardMaterial("chai_top_mat", scene);
-  topMat.diffuseColor = new Color3(0.7, 0.65, 0.55);
-  topMat.specularColor = new Color3(0.1, 0.1, 0.1);
-  top.material = topMat;
+  top.material = pbr(scene, "chai_top_mat", {
+    albedo: new Color3(0.7, 0.65, 0.55),
+    roughness: 0.6,                               // worn formica/laminate
+  });
   top.checkCollisions = false;
   top.isPickable = false;
   castShadow(top);
@@ -70,12 +70,14 @@ export function buildChaiStall(scene: Scene, lane: Lane): void {
     scene,
   );
   kettle.position.set(basePos.x - 0.4, 1.17, basePos.z - 0.1);
-  const kmat = new StandardMaterial("chai_kettle_mat", scene);
-  kmat.diffuseColor = new Color3(0.7, 0.6, 0.3);
-  kmat.specularColor = new Color3(0.6, 0.55, 0.4);
-  kettle.material = kmat;
+  kettle.material = pbr(scene, "chai_kettle_mat", {
+    albedo: new Color3(0.7, 0.6, 0.3),            // tarnished brass
+    metallic: 0.85,
+    roughness: 0.35,
+  });
   kettle.checkCollisions = false;
   kettle.isPickable = false;
+  castShadow(kettle);
 
   // Pot — bigger, for doodh/chai boil.
   const pot = MeshBuilder.CreateCylinder(
@@ -84,12 +86,14 @@ export function buildChaiStall(scene: Scene, lane: Lane): void {
     scene,
   );
   pot.position.set(basePos.x + 0.3, 1.14, basePos.z - 0.1);
-  const pmat = new StandardMaterial("chai_pot_mat", scene);
-  pmat.diffuseColor = new Color3(0.25, 0.22, 0.18);
-  pmat.specularColor = new Color3(0.3, 0.3, 0.3);
-  pot.material = pmat;
+  pot.material = pbr(scene, "chai_pot_mat", {
+    albedo: new Color3(0.25, 0.22, 0.18),         // soot-blackened cooking pot
+    metallic: 0.7,
+    roughness: 0.55,
+  });
   pot.checkCollisions = false;
   pot.isPickable = false;
+  castShadow(pot);
 
   // Small tarp roof held by bamboo-poles (4 cylinders + a flat box).
   for (const [dx, dz] of [
@@ -104,12 +108,13 @@ export function buildChaiStall(scene: Scene, lane: Lane): void {
       scene,
     );
     pole.position.set(basePos.x + dx, 1.15, basePos.z + dz);
-    const pm = new StandardMaterial("chai_pole_mat", scene);
-    pm.diffuseColor = new Color3(0.65, 0.5, 0.3);
-    pm.specularColor = new Color3(0, 0, 0);
-    pole.material = pm;
+    pole.material = pbr(scene, "chai_pole_mat", {
+      albedo: new Color3(0.65, 0.5, 0.3),
+      roughness: 0.85,                            // bamboo
+    });
     pole.isPickable = false;
     pole.checkCollisions = false;
+    castShadow(pole);
   }
   const tarp = MeshBuilder.CreateBox(
     "chai_tarp",
@@ -118,10 +123,10 @@ export function buildChaiStall(scene: Scene, lane: Lane): void {
   );
   tarp.position.set(basePos.x, 2.3, basePos.z);
   tarp.rotation.x = 0.1;
-  const tmat = new StandardMaterial("chai_tarp_mat", scene);
-  tmat.diffuseColor = new Color3(0.2, 0.35, 0.18);
-  tmat.specularColor = new Color3(0, 0, 0);
-  tarp.material = tmat;
+  tarp.material = pbr(scene, "chai_tarp_mat", {
+    albedo: new Color3(0.2, 0.35, 0.18),
+    roughness: 0.95,                              // canvas tarp
+  });
   tarp.isPickable = false;
   tarp.checkCollisions = false;
   castShadow(tarp);

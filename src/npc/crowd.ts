@@ -3,12 +3,12 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial,
   TransformNode,
   Vector3,
 } from "@babylonjs/core";
 
 import type { Lane } from "../scene/lane";
+import { pbr } from "../scene/materials";
 import { castShadow } from "../scene/shadows";
 import { mulberry32, pick, range, type Rng } from "../util/rand";
 import { AssetLibrary, instantiateModel } from "../scene/assets";
@@ -71,10 +71,10 @@ function buildProcNpc(scene: Scene, root: Mesh, idx: number, rng: Rng): void {
   );
   torso.position.y = tall * 0.55 * 0.5 + tall * 0.18;
   torso.parent = root;
-  const torsoMat = new StandardMaterial(`npc_torso_mat_${idx}`, scene);
-  torsoMat.diffuseColor = kurta;
-  torsoMat.specularColor = new Color3(0, 0, 0);
-  torso.material = torsoMat;
+  torso.material = pbr(scene, `npc_torso_mat_${idx}`, {
+    albedo: kurta,
+    roughness: 0.85,                              // cotton kurta
+  });
   torso.isPickable = false;
 
   const legs = MeshBuilder.CreateBox(
@@ -84,14 +84,10 @@ function buildProcNpc(scene: Scene, root: Mesh, idx: number, rng: Rng): void {
   );
   legs.position.y = tall * 0.45 * 0.5;
   legs.parent = root;
-  const legsMat = new StandardMaterial(`npc_legs_mat_${idx}`, scene);
-  legsMat.diffuseColor = new Color3(
-    kurta.r * 0.5,
-    kurta.g * 0.45,
-    kurta.b * 0.4,
-  );
-  legsMat.specularColor = new Color3(0, 0, 0);
-  legs.material = legsMat;
+  legs.material = pbr(scene, `npc_legs_mat_${idx}`, {
+    albedo: new Color3(kurta.r * 0.5, kurta.g * 0.45, kurta.b * 0.4),
+    roughness: 0.85,
+  });
   legs.isPickable = false;
 
   const head = MeshBuilder.CreateSphere(
@@ -101,10 +97,10 @@ function buildProcNpc(scene: Scene, root: Mesh, idx: number, rng: Rng): void {
   );
   head.position.y = tall * 0.55 + tall * 0.22;
   head.parent = root;
-  const headMat = new StandardMaterial(`npc_head_mat_${idx}`, scene);
-  headMat.diffuseColor = skin;
-  headMat.specularColor = new Color3(0.05, 0.05, 0.05);
-  head.material = headMat;
+  head.material = pbr(scene, `npc_head_mat_${idx}`, {
+    albedo: skin,
+    roughness: 0.7,                               // skin sheen
+  });
   head.isPickable = false;
 }
 

@@ -3,10 +3,10 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial,
   Vector3,
 } from "@babylonjs/core";
 
+import { pbr } from "./materials";
 import { castAndReceive, castShadow } from "./shadows";
 import {
   SHOP_ENGLISH,
@@ -52,10 +52,11 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
         scene,
       );
       body.position.set(cx, height / 2, cz);
-      const bodyMat = new StandardMaterial(`shop_body_mat_${side}_${shopIdx}`, scene);
-      bodyMat.diffuseColor = pick(rng, facadePalette);
-      bodyMat.specularColor = new Color3(0.05, 0.05, 0.05);
-      body.material = bodyMat;
+      // Painted plaster wall — rough, no metallic.
+      body.material = pbr(scene, `shop_body_mat_${side}_${shopIdx}`, {
+        albedo: pick(rng, facadePalette),
+        roughness: 0.88,
+      });
       body.checkCollisions = true;
       body.isPickable = false;
       castAndReceive(body);
@@ -76,7 +77,6 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
       // but swaps the screen-space U direction, which mirrors the text.
       // We compensate by flipping the texture's U mapping below.
       if (side === -1) sign.rotation.y = Math.PI;
-      const signMat = new StandardMaterial(`sign_mat_${side}_${shopIdx}`, scene);
       const idx = shopIdx + (side === 1 ? 7 : 0);
       const spec = {
         english: SHOP_ENGLISH[idx % SHOP_ENGLISH.length],
@@ -86,10 +86,11 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
         palette: pick(rng, SIGN_PALETTES),
       };
       const signTex = paintSignTexture(scene, `${side}_${shopIdx}`, spec);
-      signMat.diffuseTexture = signTex;
-      signMat.emissiveColor = new Color3(0.25, 0.25, 0.25); // self-lit for legibility
-      signMat.specularColor = new Color3(0, 0, 0);
-      sign.material = signMat;
+      sign.material = pbr(scene, `sign_mat_${side}_${shopIdx}`, {
+        albedoTexture: signTex,
+        roughness: 0.55,                            // painted plastic-y board
+        emissive: new Color3(0.18, 0.18, 0.18),     // slight self-lit for night/shadow
+      });
       sign.isPickable = false;
       sign.checkCollisions = false;
       meshes.push(sign);
@@ -107,14 +108,14 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
           side * (lane.shopFrontZ - 0.8),
         );
         awning.rotation.x = side * -0.2;
-        const am = new StandardMaterial(`awning_mat_${side}_${shopIdx}`, scene);
-        am.diffuseColor = new Color3(
-          0.3 + rng() * 0.5,
-          0.2 + rng() * 0.4,
-          0.2 + rng() * 0.3,
-        );
-        am.specularColor = new Color3(0, 0, 0);
-        awning.material = am;
+        awning.material = pbr(scene, `awning_mat_${side}_${shopIdx}`, {
+          albedo: new Color3(
+            0.3 + rng() * 0.5,
+            0.2 + rng() * 0.4,
+            0.2 + rng() * 0.3,
+          ),
+          roughness: 0.95,  // canvas tarp
+        });
         awning.isPickable = false;
         awning.checkCollisions = false;
         castShadow(awning);
@@ -133,10 +134,12 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
         side * (lane.shopFrontZ - 0.015),
       );
       if (side === -1) door.rotation.y = Math.PI;
-      const doorMat = new StandardMaterial(`door_mat_${side}_${shopIdx}`, scene);
-      doorMat.diffuseColor = new Color3(0.15, 0.12, 0.1);
-      doorMat.specularColor = new Color3(0.2, 0.2, 0.2);
-      door.material = doorMat;
+      // Roller-shutter door — slightly shiny corrugated metal.
+      door.material = pbr(scene, `door_mat_${side}_${shopIdx}`, {
+        albedo: new Color3(0.15, 0.12, 0.1),
+        metallic: 0.4,
+        roughness: 0.55,
+      });
       door.isPickable = false;
       door.checkCollisions = false;
       meshes.push(door);
@@ -157,11 +160,12 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
   ];
   for (let i = 0; i < bannerSpecs.length; i++) {
     const s = bannerSpecs[i];
-    const bm = new StandardMaterial(`banner_mat_${i}`, scene);
-    bm.diffuseTexture = paintBannerTexture(scene, `b${i}`, s.text, s.bg, s.fg);
-    bm.emissiveColor = new Color3(0.3, 0.3, 0.3);
+    const bm = pbr(scene, `banner_mat_${i}`, {
+      albedoTexture: paintBannerTexture(scene, `b${i}`, s.text, s.bg, s.fg),
+      roughness: 0.95,                          // cloth banner
+      emissive: new Color3(0.22, 0.22, 0.22),   // legible in shadow under wires
+    });
     bm.backFaceCulling = true;
-    bm.specularColor = new Color3(0, 0, 0);
 
     for (const face of [+1, -1] as const) {
       const banner = MeshBuilder.CreatePlane(
@@ -191,12 +195,14 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
       0.55,
       side * (lane.shopFrontZ - 0.5 + rng() * 0.3),
     );
-    const bm = new StandardMaterial(`bin_mat_${i}`, scene);
-    bm.diffuseColor = new Color3(0.12, 0.35, 0.18);
-    bm.specularColor = new Color3(0, 0, 0);
-    bin.material = bm;
+    bin.material = pbr(scene, `bin_mat_${i}`, {
+      albedo: new Color3(0.12, 0.35, 0.18),
+      metallic: 0.3,
+      roughness: 0.55,
+    });
     bin.checkCollisions = true;
     bin.isPickable = false;
+    castAndReceive(bin);
     meshes.push(bin);
   }
 
@@ -216,16 +222,18 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
     );
     scooter.position.set(p.x, 0.45, p.z);
     scooter.rotation.y = Math.random() * 0.3;
-    const sm = new StandardMaterial(`scoot_mat_${i}`, scene);
-    sm.diffuseColor = new Color3(
-      0.2 + Math.random() * 0.6,
-      0.2 + Math.random() * 0.6,
-      0.2 + Math.random() * 0.6,
-    );
-    sm.specularColor = new Color3(0.3, 0.3, 0.3);
-    scooter.material = sm;
+    scooter.material = pbr(scene, `scoot_mat_${i}`, {
+      albedo: new Color3(
+        0.2 + Math.random() * 0.6,
+        0.2 + Math.random() * 0.6,
+        0.2 + Math.random() * 0.6,
+      ),
+      metallic: 0.55,                             // painted scooter bodywork
+      roughness: 0.4,
+    });
     scooter.checkCollisions = true;
     scooter.isPickable = false;
+    castAndReceive(scooter);
     meshes.push(scooter);
   }
 

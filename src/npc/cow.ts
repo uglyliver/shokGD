@@ -3,12 +3,13 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial,
   TransformNode,
   Vector3,
 } from "@babylonjs/core";
 
 import type { Lane } from "../scene/lane";
+import { pbr } from "../scene/materials";
+import { castShadow } from "../scene/shadows";
 import { mulberry32, range, type Rng } from "../util/rand";
 import { AssetLibrary, instantiateModel } from "../scene/assets";
 
@@ -35,9 +36,7 @@ function pickCowTarget(lane: Lane, rng: Rng): Vector3 {
 function buildProcCow(scene: Scene, root: Mesh): void {
   const coat = new Color3(0.92, 0.9, 0.86);
   const coatDark = new Color3(0.2, 0.15, 0.12);
-  const bodyMat = new StandardMaterial("cow_body_mat", scene);
-  bodyMat.diffuseColor = coat;
-  bodyMat.specularColor = new Color3(0.05, 0.05, 0.05);
+  const bodyMat = pbr(scene, "cow_body_mat", { albedo: coat, roughness: 0.9 });
 
   const body = MeshBuilder.CreateBox("cow_body", { width: 0.7, height: 0.8, depth: 1.6 }, scene);
   body.position.y = 0.9;
@@ -48,10 +47,7 @@ function buildProcCow(scene: Scene, root: Mesh): void {
   const patch = MeshBuilder.CreateBox("cow_patch", { width: 0.72, height: 0.4, depth: 0.5 }, scene);
   patch.position.set(0, 0.9, 0.2);
   patch.parent = root;
-  const patchMat = new StandardMaterial("cow_patch_mat", scene);
-  patchMat.diffuseColor = coatDark;
-  patchMat.specularColor = new Color3(0, 0, 0);
-  patch.material = patchMat;
+  patch.material = pbr(scene, "cow_patch_mat", { albedo: coatDark, roughness: 0.9 });
   patch.isPickable = false;
 
   const head = MeshBuilder.CreateBox("cow_head", { width: 0.45, height: 0.45, depth: 0.55 }, scene);
@@ -76,10 +72,10 @@ function buildProcCow(scene: Scene, root: Mesh): void {
     horn.position.set(sx * 0.15, 1.3, 1.15);
     horn.rotation.z = sx * -0.5;
     horn.parent = root;
-    const hm = new StandardMaterial("cow_horn_mat", scene);
-    hm.diffuseColor = new Color3(0.6, 0.5, 0.4);
-    hm.specularColor = new Color3(0, 0, 0);
-    horn.material = hm;
+    horn.material = pbr(scene, "cow_horn_mat", {
+      albedo: new Color3(0.6, 0.5, 0.4),
+      roughness: 0.65,                            // bone/keratin sheen
+    });
     horn.isPickable = false;
   }
 
@@ -131,6 +127,8 @@ export function spawnCow(scene: Scene, lane: Lane, assets: AssetLibrary): Cow {
     root = new Mesh("cow", scene);
     buildProcCow(scene, root as Mesh);
   }
+
+  for (const m of root.getChildMeshes(false)) castShadow(m);
 
   const start = pickCowTarget(lane, rng);
   root.position.copyFrom(start);

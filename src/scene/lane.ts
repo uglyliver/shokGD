@@ -4,10 +4,10 @@ import {
   Mesh,
   MeshBuilder,
   Scene,
-  StandardMaterial,
   Vector3,
 } from "@babylonjs/core";
 
+import { pbr } from "./materials";
 import { castShadow, receiveShadow } from "./shadows";
 
 export interface Lane {
@@ -137,22 +137,23 @@ export function buildLane(scene: Scene): Lane {
   ground.checkCollisions = true;
   ground.isPickable = false;
 
-  const groundMat = new StandardMaterial("groundMat", scene);
-  groundMat.diffuseColor = new Color3(0.35, 0.3, 0.25);
-  groundMat.specularColor = new Color3(0, 0, 0);
-  ground.material = groundMat;
+  ground.material = pbr(scene, "groundMat", {
+    albedo: new Color3(0.35, 0.3, 0.25),
+    roughness: 0.95,
+  });
   ground.position.y = 0;
 
-  // Road strip.
+  // Road strip — dark asphalt, very rough, slightly reflective when wet but
+  // we're dry today so almost matte.
   const road = MeshBuilder.CreateGround(
     "road",
     { width: length, height: roadWidth, subdivisions: 1 },
     scene,
   );
-  const roadMat = new StandardMaterial("roadMat", scene);
-  roadMat.diffuseTexture = paintRoadTexture(scene, length / 10);
-  roadMat.specularColor = new Color3(0.05, 0.05, 0.05);
-  road.material = roadMat;
+  road.material = pbr(scene, "roadMat", {
+    albedoTexture: paintRoadTexture(scene, length / 10),
+    roughness: 0.92,
+  });
   road.position.y = 0.01;
   road.isPickable = false;
   road.checkCollisions = false;
@@ -165,10 +166,10 @@ export function buildLane(scene: Scene): Lane {
       { width: length, height: pavementWidth, subdivisions: 1 },
       scene,
     );
-    const pavMat = new StandardMaterial(`pavMat_${sign}`, scene);
-    pavMat.diffuseTexture = paintPavementTexture(scene, length / 6);
-    pavMat.specularColor = new Color3(0, 0, 0);
-    pav.material = pavMat;
+    pav.material = pbr(scene, `pavMat_${sign}`, {
+      albedoTexture: paintPavementTexture(scene, length / 6),
+      roughness: 0.8,  // tile has some sheen vs road's matte asphalt
+    });
     pav.position.y = 0.12;
     pav.position.z = sign * (roadWidth / 2 + pavementWidth / 2);
     pav.isPickable = false;
@@ -184,10 +185,10 @@ export function buildLane(scene: Scene): Lane {
       scene,
     );
     kerb.position.set(0, 0.06, sign * (roadWidth / 2 + 0.075));
-    const km = new StandardMaterial(`kerbMat_${sign}`, scene);
-    km.diffuseColor = new Color3(0.85, 0.85, 0.82);
-    km.specularColor = new Color3(0, 0, 0);
-    kerb.material = km;
+    kerb.material = pbr(scene, `kerbMat_${sign}`, {
+      albedo: new Color3(0.85, 0.85, 0.82),
+      roughness: 0.85,
+    });
     kerb.isPickable = false;
     kerb.checkCollisions = false;
   }
@@ -201,10 +202,10 @@ export function buildLane(scene: Scene): Lane {
       scene,
     );
     backWall.position.set(0, (shopHeight + 4) / 2, sign * (shopFrontZ + shopDepth));
-    const bwm = new StandardMaterial(`backWallMat_${sign}`, scene);
-    bwm.diffuseColor = new Color3(0.2, 0.2, 0.22);
-    bwm.specularColor = new Color3(0, 0, 0);
-    backWall.material = bwm;
+    backWall.material = pbr(scene, `backWallMat_${sign}`, {
+      albedo: new Color3(0.2, 0.2, 0.22),
+      roughness: 0.9,
+    });
     backWall.checkCollisions = true;
     backWall.isPickable = false;
     receiveShadow(backWall);
@@ -220,10 +221,10 @@ export function buildLane(scene: Scene): Lane {
       scene,
     );
     cap.position.set(sign * (length / 2), (shopHeight + 4) / 2, 0);
-    const cm = new StandardMaterial(`endCapMat_${sign}`, scene);
-    cm.diffuseColor = new Color3(0.18, 0.18, 0.2);
-    cm.specularColor = new Color3(0, 0, 0);
-    cap.material = cm;
+    cap.material = pbr(scene, `endCapMat_${sign}`, {
+      albedo: new Color3(0.18, 0.18, 0.2),
+      roughness: 0.9,
+    });
     cap.checkCollisions = true;
     cap.isPickable = false;
   }
@@ -242,10 +243,10 @@ export function buildLane(scene: Scene): Lane {
         scene,
       );
       post.position.set(x, (shopHeight + 2) / 2, z);
-      const pm = new StandardMaterial(`postMat_${s}_${i}`, scene);
-      pm.diffuseColor = new Color3(0.15, 0.15, 0.15);
-      pm.specularColor = new Color3(0, 0, 0);
-      post.material = pm;
+      post.material = pbr(scene, `postMat_${s}_${i}`, {
+        albedo: new Color3(0.15, 0.15, 0.15),
+        roughness: 0.7,  // weathered concrete-painted-black power pole
+      });
       post.checkCollisions = false;
       post.isPickable = false;
       postPositions.push(new Vector3(x, shopHeight + 1.8, z));
@@ -255,9 +256,10 @@ export function buildLane(scene: Scene): Lane {
   // String wires across the lane between opposing posts (paired by index)
   // plus along each side between consecutive posts. Random sag via a middle
   // bend segment.
-  const wireMat = new StandardMaterial("wireMat", scene);
-  wireMat.diffuseColor = new Color3(0.05, 0.05, 0.05);
-  wireMat.specularColor = new Color3(0, 0, 0);
+  const wireMat = pbr(scene, "wireMat", {
+    albedo: new Color3(0.05, 0.05, 0.05),
+    roughness: 0.7,
+  });
 
   const makeWire = (a: Vector3, b: Vector3, sagY: number) => {
     const mid = a.add(b).scale(0.5);
