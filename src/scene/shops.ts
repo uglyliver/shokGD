@@ -7,6 +7,7 @@ import {
   Vector3,
 } from "@babylonjs/core";
 
+import { castAndReceive, castShadow } from "./shadows";
 import {
   SHOP_ENGLISH,
   SHOP_HINDI,
@@ -57,6 +58,7 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
       body.material = bodyMat;
       body.checkCollisions = true;
       body.isPickable = false;
+      castAndReceive(body);
       meshes.push(body);
 
       // Signboard: flat plane in front of the body near the top.
@@ -115,6 +117,7 @@ export function buildShops(scene: Scene, lane: Lane): Mesh[] {
         awning.material = am;
         awning.isPickable = false;
         awning.checkCollisions = false;
+        castShadow(awning);
         meshes.push(awning);
       }
 

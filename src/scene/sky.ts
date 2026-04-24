@@ -47,7 +47,12 @@ function paintSkyTexture(scene: Scene): Texture {
   return tex;
 }
 
-export function buildSky(scene: Scene): void {
+export interface SkyLights {
+  sun: DirectionalLight;
+  bounce: HemisphericLight;
+}
+
+export function buildSky(scene: Scene): SkyLights {
   const sky = MeshBuilder.CreateSphere(
     "sky",
     { diameter: 2000, sideOrientation: 1 /* BACKSIDE */ },
@@ -65,15 +70,22 @@ export function buildSky(scene: Scene): void {
   mat.specularColor = new Color3(0, 0, 0);
   sky.material = mat;
 
-  // Warm afternoon sun, slightly off-axis so shops cast long shadows across
-  // the lane.
+  // Warm afternoon sun. Direction biased so shops cast long oblique shadows
+  // across the lane (sun is roughly south-west in this scene's framing).
+  // Position the light far enough back along the inverse direction that its
+  // shadow frustum can encompass the whole lane.
   const sun = new DirectionalLight("sun", new Vector3(-0.4, -0.85, 0.3), scene);
-  sun.intensity = 1.4;
-  sun.diffuse = new Color3(1.0, 0.92, 0.78);
-  sun.specular = new Color3(1.0, 0.95, 0.82);
+  sun.intensity = 2.4;                          // boosted for ACES tonemap
+  sun.diffuse = new Color3(1.0, 0.9, 0.72);     // warmer for late afternoon
+  sun.specular = new Color3(1.0, 0.92, 0.78);
+  sun.position = new Vector3(40, 85, -30);      // back along -direction × ~100m
+  sun.shadowMinZ = 1;
+  sun.shadowMaxZ = 250;
 
   const bounce = new HemisphericLight("bounce", new Vector3(0, 1, 0), scene);
-  bounce.intensity = 0.45;
-  bounce.diffuse = new Color3(0.78, 0.82, 0.9);
-  bounce.groundColor = new Color3(0.35, 0.28, 0.22);
+  bounce.intensity = 0.7;                       // PBR needs more ambient lift
+  bounce.diffuse = new Color3(0.78, 0.82, 0.9); // sky-tinted top
+  bounce.groundColor = new Color3(0.42, 0.34, 0.26); // warm dust bounce
+
+  return { sun, bounce };
 }

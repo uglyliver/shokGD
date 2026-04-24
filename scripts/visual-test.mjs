@@ -184,7 +184,14 @@ try {
 
   const pageErrors = [];
   const consoleErrors = [];
-  page.on("pageerror", (e) => pageErrors.push(String(e)));
+  page.on("pageerror", (e) => {
+    const s = String(e);
+    // page.click("#game") below triggers requestPointerLock(), which Chrome
+    // immediately rejects in headless / no-user-gesture mode. Harmless for
+    // our test path — we only care about other runtime errors.
+    if (/exited the lock/i.test(s)) return;
+    pageErrors.push(s);
+  });
   page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text()); });
 
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "load", timeout: 60_000 });

@@ -8,6 +8,8 @@ import {
   Vector3,
 } from "@babylonjs/core";
 
+import { castShadow, receiveShadow } from "./shadows";
+
 export interface Lane {
   length: number; // along X
   roadWidth: number; // across Z
@@ -154,6 +156,7 @@ export function buildLane(scene: Scene): Lane {
   road.position.y = 0.01;
   road.isPickable = false;
   road.checkCollisions = false;
+  receiveShadow(road);
 
   // Pavements.
   for (const sign of [-1, 1]) {
@@ -170,6 +173,7 @@ export function buildLane(scene: Scene): Lane {
     pav.position.z = sign * (roadWidth / 2 + pavementWidth / 2);
     pav.isPickable = false;
     pav.checkCollisions = false;
+    receiveShadow(pav);
   }
 
   // Kerb strips between road and pavement — thin boxes so the edge reads.
@@ -203,6 +207,8 @@ export function buildLane(scene: Scene): Lane {
     backWall.material = bwm;
     backWall.checkCollisions = true;
     backWall.isPickable = false;
+    receiveShadow(backWall);
+    castShadow(backWall);
   }
 
   // End caps so the lane is closed off at both ends (gives the 200m its

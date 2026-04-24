@@ -10,6 +10,7 @@ import {
 } from "@babylonjs/core";
 
 import type { Lane } from "./lane";
+import { castAndReceive, castShadow } from "./shadows";
 
 function paintSteamParticleTexture(scene: Scene): Texture {
   const size = 64;
@@ -45,6 +46,7 @@ export function buildChaiStall(scene: Scene, lane: Lane): void {
   cart.material = cartMat;
   cart.checkCollisions = true;
   cart.isPickable = false;
+  castAndReceive(cart);
 
   // Counter top.
   const top = MeshBuilder.CreateBox(
@@ -59,6 +61,7 @@ export function buildChaiStall(scene: Scene, lane: Lane): void {
   top.material = topMat;
   top.checkCollisions = false;
   top.isPickable = false;
+  castShadow(top);
 
   // Kettle — cylinder + a knob.
   const kettle = MeshBuilder.CreateCylinder(
@@ -121,6 +124,7 @@ export function buildChaiStall(scene: Scene, lane: Lane): void {
   tarp.material = tmat;
   tarp.isPickable = false;
   tarp.checkCollisions = false;
+  castShadow(tarp);
 
   // Steam particles off the pot.
   const steam = new ParticleSystem("chai_steam", 100, scene);

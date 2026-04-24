@@ -3,8 +3,9 @@ import {
   Color3,
   Color4,
   Engine,
-  HemisphericLight,
+  ImageProcessingConfiguration,
   Scene,
+  ShadowGenerator,
   Vector3,
 } from "@babylonjs/core";
 
@@ -49,6 +50,19 @@ export async function startGame(
   scene.gravity = new Vector3(0, -0.6, 0);
   scene.collisionsEnabled = true;
 
+  // Tone mapping: ACES gives the warm filmic roll-off the gali wants instead
+  // of the harsh linear blow-outs you get with no tonemap. Slight contrast +
+  // exposure trim tunes the midtones for the dusty-afternoon mood.
+  const ipc = scene.imageProcessingConfiguration;
+  ipc.toneMappingEnabled = true;
+  ipc.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES;
+  ipc.exposure = 1.05;
+  ipc.contrast = 1.08;
+  ipc.vignetteEnabled = true;
+  ipc.vignetteWeight = 1.5;
+  ipc.vignetteColor = new Color4(0.08, 0.05, 0.02, 0);  // warm corners
+  ipc.vignetteBlendMode = ImageProcessingConfiguration.VIGNETTEMODE_MULTIPLY;
+
   const bootCam = new ArcRotateCamera(
     "bootCam",
     Math.PI * 0.75,
@@ -60,10 +74,20 @@ export async function startGame(
   bootCam.attachControl(canvas, false);
   bootCam.useAutoRotationBehavior = true;
 
-  new HemisphericLight("fill", new Vector3(0, 1, 0), scene).intensity = 0.35;
-
   progress(0.06, "painting the sky");
-  buildSky(scene);
+  const { sun } = buildSky(scene);
+
+  // Cascaded shadow map on the sun. PCF filter softens edges; bias trims the
+  // shadow acne. ShadowGenerator is wired up here, but each scene module
+  // adds its own meshes as casters/receivers.
+  const shadowGen = new ShadowGenerator(2048, sun);
+  shadowGen.useContactHardeningShadow = true;
+  shadowGen.contactHardeningLightSizeUVRatio = 0.12;
+  shadowGen.bias = 0.0008;
+  shadowGen.normalBias = 0.02;
+  shadowGen.darkness = 0.35;
+  // Stash on the scene so scene modules can grab it without prop-drilling.
+  (scene as unknown as { __shadowGen?: ShadowGenerator }).__shadowGen = shadowGen;
 
   progress(0.14, "laying the road");
   const lane = buildLane(scene);

@@ -2,7 +2,12 @@ import { Scene, TransformNode } from "@babylonjs/core";
 
 import type { Lane } from "./lane";
 import { AssetLibrary, instantiateModel } from "./assets";
+import { castAndReceive } from "./shadows";
 import { mulberry32, range, type Rng } from "../util/rand";
+
+function shadowsForInstance(root: TransformNode): void {
+  for (const m of root.getChildMeshes(false)) castAndReceive(m);
+}
 
 // E-rickshaws: spawn `parked` along the kerb and `moving` on a slow
 // back-and-forth along the road. If the model isn't present (`erickshaw.glb`
@@ -45,6 +50,7 @@ export function spawnErickshaws(
     // convention, so rotating +π/2 or -π/2 aligns the vehicle with ±X).
     inst.root.rotation.y =
       (side === -1 ? Math.PI / 2 : -Math.PI / 2) + range(rng, -0.08, 0.08);
+    shadowsForInstance(inst.root);
   }
 
   // Moving — drive slowly along one side of the road. Back-and-forth within
@@ -58,6 +64,7 @@ export function spawnErickshaws(
     inst.root.position.set(xStart, 0, z);
     // Forward=+Z per convention; rotate ±π/2 so forward aligns with ±X.
     inst.root.rotation.y = dir === 1 ? Math.PI / 2 : -Math.PI / 2;
+    shadowsForInstance(inst.root);
 
     moving.push({
       root: inst.root,

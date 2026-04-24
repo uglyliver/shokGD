@@ -9,6 +9,7 @@ import {
 } from "@babylonjs/core";
 
 import type { Lane } from "../scene/lane";
+import { castShadow } from "../scene/shadows";
 import { mulberry32, pick, range, type Rng } from "../util/rand";
 import { AssetLibrary, instantiateModel } from "../scene/assets";
 
@@ -148,6 +149,9 @@ export function spawnCrowd(
       root = new Mesh(`npc_${i}`, scene);
       buildProcNpc(scene, root as Mesh, i, rng);
     }
+
+    // Cast shadows from every renderable mesh under the root.
+    for (const m of root.getChildMeshes(false)) castShadow(m);
 
     const start = pickTarget(lane, side, rng);
     root.position.copyFrom(start);
