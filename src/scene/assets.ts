@@ -160,10 +160,11 @@ export function instantiateModel(
 
 export const MANIFEST: ModelManifestEntry[] = [
   { key: "cow",               file: "cow.glb" },
-  // Scale 1.0 (as-exported). The Meshy model already has forward=+Z per
-  // public/models/README.md convention; spawn-time ±π/2 rotations align it
-  // with the lane.
-  { key: "erickshaw",         file: "erickshaw.glb",         scale: 1.0 },
+  // The Meshy-exported erickshaw is authored with forward = local -X (its
+  // longest bbox axis is X but the vehicle faces the negative direction of
+  // it). yawOffset=π/2 sends local -X to the project's +Z forward so the
+  // spawn-time ±π/2 yaw aligns it with the lane.
+  { key: "erickshaw",         file: "erickshaw.glb",         scale: 1.0, yawOffset: Math.PI / 2 },
   { key: "npc_male_kurta",    file: "npc_male_kurta.glb" },
   { key: "npc_female_saree",  file: "npc_female_saree.glb" },
   { key: "auto_rickshaw",     file: "auto_rickshaw.glb" },
