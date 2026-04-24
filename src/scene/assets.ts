@@ -164,10 +164,7 @@ export const MANIFEST: ModelManifestEntry[] = [
   // public/models/README.md convention; spawn-time ±π/2 rotations align it
   // with the lane.
   { key: "erickshaw",         file: "erickshaw.glb",         scale: 1.0 },
-  // CesiumMan (the placeholder for npc_male_kurta) faces local -Z, opposite
-  // the project +Z convention — flip 180° so atan2(to.x, to.z) in crowd.ts
-  // points the model along its motion direction instead of away from it.
-  { key: "npc_male_kurta",    file: "npc_male_kurta.glb",    yawOffset: Math.PI },
+  { key: "npc_male_kurta",    file: "npc_male_kurta.glb" },
   { key: "npc_female_saree",  file: "npc_female_saree.glb" },
   { key: "auto_rickshaw",     file: "auto_rickshaw.glb" },
   { key: "scooter",           file: "scooter.glb" },
