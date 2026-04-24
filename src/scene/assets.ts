@@ -137,21 +137,22 @@ export function instantiateModel(
   inner.parent = outer;
   inner.name = `${name}__inner`;
 
-  // Per-model correction lives on the INNER node.
+  // Per-model correction lives on the INNER node — scale, authoring-axis yaw,
+  // and the auto-ground y-offset all compose here. That way the outer node
+  // starts at origin and callers can freely do `inst.root.position.set(x,0,z)`
+  // without undoing the grounding or the yaw correction.
   inner.scaling.setAll(tmpl.transform.scale);
   inner.rotation.y = tmpl.transform.yawOffset;
 
-  // Auto-ground / y-offset applied to the outer node so callers can
-  // override position.y themselves without re-breaking grounding.
   if (tmpl.transform.yOffset === "auto") {
     outer.computeWorldMatrix(true);
     const bb = (outer as unknown as AbstractMesh).getHierarchyBoundingVectors(true);
     const minY = bb.min.y;
     if (isFinite(minY) && Math.abs(minY) > 0.001) {
-      outer.position.y -= minY;
+      inner.position.y -= minY;
     }
   } else if (typeof tmpl.transform.yOffset === "number") {
-    outer.position.y += tmpl.transform.yOffset;
+    inner.position.y += tmpl.transform.yOffset;
   }
 
   return { root: outer, animations: result.animationGroups };
