@@ -29,35 +29,51 @@ if len(script_args) < 2:
 
 IN_GLB, OUT_GLB = script_args[0], script_args[1]
 
-# ---- 1. Reset scene
+# ---- 1. Reset scene. read_factory_settings(use_empty=True) leaves stray
+# default objects in headless mode (Blender 4.0 quirk), so wipe explicitly.
 bpy.ops.wm.read_factory_settings(use_empty=True)
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+for m in list(bpy.data.meshes):
+    bpy.data.meshes.remove(m, do_unlink=True)
+for a in list(bpy.data.armatures):
+    bpy.data.armatures.remove(a, do_unlink=True)
 
 # ---- 2. Import glb
 bpy.ops.import_scene.gltf(filepath=IN_GLB)
 
-# Find the imported mesh object (Meshy ships one mesh per file).
+# Find the imported mesh object. If multiple, pick the one with the most
+# vertices (Meshy NPCs are a single dense mesh; defensive against stray
+# small meshes Blender's import might synthesise).
 mesh_objs = [o for o in bpy.data.objects if o.type == "MESH"]
 if not mesh_objs:
     print("ERR: no mesh imported")
     sys.exit(2)
-if len(mesh_objs) > 1:
-    print(f"WARN: {len(mesh_objs)} meshes; will rig the first")
+mesh_objs.sort(key=lambda o: -len(o.data.vertices))
 mesh = mesh_objs[0]
+if len(mesh_objs) > 1:
+    print(f"WARN: {len(mesh_objs)} meshes; picked '{mesh.name}' "
+          f"({len(mesh.data.vertices)} verts) over others "
+          f"{[(o.name, len(o.data.vertices)) for o in mesh_objs[1:]]}")
 print(f"[rig] mesh: {mesh.name} verts={len(mesh.data.vertices)}")
 
-# Flatten: detach mesh from any imported parent, clear any pre-existing
-# vertex groups (Meshy sometimes emits empty groups), and apply the world
-# transform so subsequent bbox math is in object space.
+# Flatten: detach mesh from any imported parent, strip any modifiers
+# (importantly: any Armature modifier from a previously-rigged glb — leaving
+# it in place will deform the mesh into the rest pose during transform_apply
+# and collapse it once we delete the source armature), drop pre-existing
+# vertex groups, then apply transform so subsequent bbox math is object-space.
 mesh.parent = None
+for mod in list(mesh.modifiers):
+    mesh.modifiers.remove(mod)
 for vg in list(mesh.vertex_groups):
     mesh.vertex_groups.remove(vg)
 bpy.context.view_layer.objects.active = mesh
 mesh.select_set(True)
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
-# Drop every other imported object (root empties, dummy nodes) — Blender's
-# glTF exporter walks the whole scene tree and trips on stray nodes that
-# look skin-like.
+# Drop every other imported object (root empties, source armatures, dummy
+# nodes). The glTF exporter walks the whole scene tree and trips on stray
+# nodes that look skin-like.
 for o in list(bpy.data.objects):
     if o is not mesh:
         bpy.data.objects.remove(o, do_unlink=True)
@@ -183,42 +199,60 @@ for v in mesh.data.vertices:
 print(f"[rig] auto-weights left {len(unweighted_verts)}/{len(mesh.data.vertices)} verts unweighted")
 
 if unweighted_verts:
-    # Build a segment list from the armature: (bone_name, head_world, tail_world)
+    # Build segment list: (bone_name, head_world, tail_world).
     bone_segments = []
     for b in arm_data.bones:
         bone_segments.append((b.name, Vector(b.head_local), Vector(b.tail_local)))
 
-    def nearest_bone_distance(point):
-        best_name = None
-        best_dist = float("inf")
-        for name, h, t in bone_segments:
-            seg = t - h
-            seg_len2 = seg.dot(seg)
-            if seg_len2 < 1e-9:
-                d = (point - h).length
-            else:
-                tparam = max(0.0, min(1.0, (point - h).dot(seg) / seg_len2))
-                closest = h + seg * tparam
-                d = (point - closest).length
-            if d < best_dist:
-                best_dist = d
-                best_name = name
-        return best_name, best_dist
+    def dist_to_segment(point, h, t):
+        seg = t - h
+        seg_len2 = seg.dot(seg)
+        if seg_len2 < 1e-9:
+            return (point - h).length
+        tparam = max(0.0, min(1.0, (point - h).dot(seg) / seg_len2))
+        closest = h + seg * tparam
+        return (point - closest).length
 
-    # Make sure every bone has a vertex group (parent_set may have skipped
-    # bones that auto-weights couldn't find any verts for).
+    # Pre-create a vertex group per bone (parent_set may have skipped bones
+    # auto-weights couldn't find any verts for).
     bone_groups = {}
     for b in arm_data.bones:
         vg = mesh.vertex_groups.get(b.name) or mesh.vertex_groups.new(name=b.name)
         bone_groups[b.name] = vg
 
+    # K-nearest with inverse-square falloff and a hard cutoff. Each vertex
+    # gets 3 weights summing to 1.0 — gives smooth blending across bone
+    # boundaries instead of the rigid seams a single-nearest-bone scheme
+    # produces.
+    K = 3
     for vi in unweighted_verts:
         v = mesh.data.vertices[vi]
         world_pos = mesh.matrix_world @ v.co
-        name, _ = nearest_bone_distance(world_pos)
-        bone_groups[name].add([vi], 1.0, "REPLACE")
-    print(f"[rig] {len(unweighted_verts)} verts manually assigned to nearest bone")
+        # Distances to each bone segment.
+        dists = [(name, dist_to_segment(world_pos, h, t)) for name, h, t in bone_segments]
+        dists.sort(key=lambda x: x[1])
+        nearest = dists[:K]
+        # Inverse-square weights with epsilon to avoid div-by-zero.
+        weights = [(name, 1.0 / max(d * d, 1e-6)) for name, d in nearest]
+        total = sum(w for _, w in weights)
+        for name, w in weights:
+            bone_groups[name].add([vi], w / total, "REPLACE")
+    print(f"[rig] {len(unweighted_verts)} verts manually assigned via K=3 inverse-dist blend")
 
+bpy.ops.object.vertex_group_normalize_all()
+
+# Smooth weights across mesh-neighbour vertices to soften the seams that
+# K-nearest weighting leaves at bone-influence boundaries. Two passes of
+# moderate factor — more is mushy, less leaves visible spikes.
+bpy.context.view_layer.objects.active = mesh
+bpy.ops.object.mode_set(mode="WEIGHT_PAINT")
+try:
+    bpy.ops.object.vertex_group_smooth(
+        group_select_mode="ALL", factor=0.5, repeat=4, expand=0.0,
+    )
+except Exception as e:
+    print(f"[rig] vertex_group_smooth skipped: {e}")
+bpy.ops.object.mode_set(mode="OBJECT")
 bpy.ops.object.vertex_group_normalize_all()
 
 # ---- 6. Walk animation: 24 fps, 24 frames = 1 second loop.
