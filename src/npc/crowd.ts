@@ -345,11 +345,20 @@ export function spawnCrowd(
     if (inst) {
       root = inst.root;
       usingModel = true;
-      // Meshy exports are static T-poses — no walk animation to play.
       // Apply a small per-NPC scale jitter so identical templates don't
       // visually clone-stamp.
       const sJitter = 0.94 + rng() * 0.12;
       root.scaling.scaleInPlace(sJitter);
+      // If the glb came with a walk cycle (our scripts/rig_npc.py adds one
+      // for the otherwise-static Meshy exports), start it looping at a
+      // randomised phase so adjacent NPCs aren't lock-stepped.
+      const walk =
+        inst.animations.find((a) => /walk/i.test(a.name)) ??
+        inst.animations[0];
+      if (walk) {
+        walk.start(true);
+        walk.goToFrame(rng() * (walk.to - walk.from) + walk.from);
+      }
     } else {
       root = new Mesh(`npc_${i}`, scene);
       buildProcNpc(scene, root as Mesh, i, rng);
